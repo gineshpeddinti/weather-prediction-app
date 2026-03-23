@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Predictor</title>
+
+  <!-- Google Fonts: Syne (display) + DM Sans (body) -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── CSS Variables ──────────────────────────────────── */
+    :root {
+      --bg:          #0a0f1e;
+      --surface:     #111827;
+      --surface2:    #1a2236;
+      --border:      rgba(99,179,237,0.15);
+      --accent:      #63b3ed;
+      --accent2:     #9f7aea;
+      --rain:        #4299e1;
+      --no-rain:     #f6e05e;
+      --text:        #e2e8f0;
+      --muted:       #718096;
+      --radius:      18px;
+      --glow:        0 0 40px rgba(99,179,237,0.15);
+    }
+
+    /* ── Reset & Base ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background orbs ───────────────────────── */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: var(--accent);
+      top: -100px; left: -100px;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: var(--accent2);
+      bottom: -80px; right: -80px;
+      animation: drift 10s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to   { transform: translate(40px, 40px); }
+    }
+
+    /* ── Card ───────────────────────────────────────────── */
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 44px 40px 40px;
+      box-shadow: var(--glow), 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .header { text-align: center; margin-bottom: 36px; }
+
+    .logo {
+      font-size: 2.6rem;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-top: 6px;
+      font-weight: 300;
+    }
+
+    /* ── Input Group ─────────────────────────────────────── */
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,179,237,0.12);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      padding: 14px 22px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    button:hover  { opacity: 0.88; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── Loading ─────────────────────────────────────────── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 30px 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .spinner {
+      width: 34px; height: 34px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ───────────────────────────────────────────── */
+    .error-box {
+      display: none;
+      background: rgba(245,101,101,0.1);
+      border: 1px solid rgba(245,101,101,0.3);
+      border-radius: 12px;
+      padding: 14px 18px;
+      color: #fc8181;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+
+    /* ── Result Card ─────────────────────────────────────── */
+    .result {
+      display: none;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .city-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .weather-icon { width: 64px; height: 64px; }
+    .city-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .description { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Stats Grid ──────────────────────────────────────── */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .stat-label {
+      font-size: 0.73rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .stat-unit {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-left: 3px;
+      font-weight: 400;
+    }
+
+    /* ── Prediction Banner ───────────────────────────────── */
+    .prediction {
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      text-align: center;
+    }
+    .prediction.rain {
+      background: linear-gradient(135deg, rgba(66,153,225,0.18), rgba(99,179,237,0.08));
+      border: 1px solid rgba(66,153,225,0.35);
+    }
+    .prediction.no-rain {
+      background: linear-gradient(135deg, rgba(246,224,94,0.15), rgba(246,173,85,0.08));
+      border: 1px solid rgba(246,224,94,0.3);
+    }
+    .prediction-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .confidence {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .confidence span {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ── Footer note ─────────────────────────────────────── */
+    .footer-note {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 28px;
+    }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .card { padding: 32px 24px; }
+      .stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">🌤</div>
+      <h1>Weather Predictor</h1>
+      <p class="subtitle">ML-powered rain prediction · Live weather data</p>
+    </div>
+
+    <!-- Input -->
+    <div class="input-group">
+      <input
+        type="text"
+        id="cityInput"
+        placeholder="Enter city name (e.g. Mumbai)"
+        autocomplete="off"
+      />
+      <button id="predictBtn" onclick="getPrediction()">Predict</button>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      Fetching live weather data…
+    </div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+      <div class="city-row">
+        <img class="weather-icon" id="weatherIcon" src="" alt="weather icon" />
+        <div>
+          <div class="city-name" id="cityName">—</div>
+          <div class="description" id="weatherDesc">—</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">🌡 Temperature</div>
+          <div class="stat-value" id="temp">—<span class="stat-unit">°C</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">💧 Humidity</div>
+          <div class="stat-value" id="humidity">—<span class="stat-unit">%</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">🔵 Pressure</div>
+          <div class="stat-value" id="pressure">—<span class="stat-unit">hPa</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">💨 Wind Speed</div>
+          <div class="stat-value" id="wind">—<span class="stat-unit">m/s</span></div>
+        </div>
+      </div>
+
+      <div class="prediction" id="predictionBox">
+        <div class="prediction-label" id="predictionLabel">—</div>
+        <div class="confidence">Model confidence: <span id="confidence">—</span></div>
+      </div>
+    </div>
+
+    <div class="footer-note">Powered by OpenWeather API · Random Forest ML Model</div>
+  </div>
+
+  <script>
+    // Allow pressing Enter to trigger prediction
+    document.getElementById("cityInput").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") getPrediction();
+    });
+
+    async function getPrediction() {
+      const city = document.getElementById("cityInput").value.trim();
+
+      // ── Validate input ────────────────────────────────────
+      if (!city) {
+        showError("Please enter a city name.");
+        return;
+      }
+
+      // ── UI: show loading ──────────────────────────────────
+      hide("result");
+      hide("errorBox");
+      show("loading");
+      document.getElementById("predictBtn").disabled = true;
+
+      try {
+        // ── Call Flask backend ────────────────────────────────
+        const response = await fetch("/predict", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ city })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || "Something went wrong.");
+        }
+
+        // ── Populate result UI ────────────────────────────────
+        document.getElementById("cityName").textContent    = data.city;
+        document.getElementById("weatherDesc").textContent = data.description;
+        document.getElementById("weatherIcon").src         = data.icon;
+        document.getElementById("temp").innerHTML          = `${data.temperature}<span class="stat-unit">°C</span>`;
+        document.getElementById("humidity").innerHTML      = `${data.humidity}<span class="stat-unit">%</span>`;
+        document.getElementById("pressure").innerHTML      = `${data.pressure}<span class="stat-unit">hPa</span>`;
+        document.getElementById("wind").innerHTML          = `${data.wind_speed}<span class="stat-unit">m/s</span>`;
+        document.getElementById("predictionLabel").textContent = data.prediction;
+        document.getElementById("confidence").textContent  = `${data.confidence}%`;
+
+        // Style prediction box based on result
+        const box = document.getElementById("predictionBox");
+        box.className = "prediction " + (data.prediction.includes("Rain Expected") && !data.prediction.includes("No Rain") ? "rain" : "no-rain");
+
+        hide("loading");
+        show("result");
+
+      } catch (err) {
+        hide("loading");
+        showError(err.message);
+      } finally {
+        document.getElementById("predictBtn").disabled = false;
+      }
+    }
+
+    function show(id) { document.getElementById(id).style.display = "block"; }
+    function hide(id) { document.getElementById(id).style.display = "none"; }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.textContent = "⚠ " + msg;
+      box.style.display = "block";
+    }
+  </script>
+</body>
+</html>
